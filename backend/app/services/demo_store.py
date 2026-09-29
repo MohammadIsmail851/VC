@@ -400,7 +400,8 @@ class DemoStore:
             completed_tasks_count=done_tasks,
             unresolved_blockers=unresolved_blockers,
             team_members_count=len(self.members),
-            retention_health="optimal"
+            retention_health="optimal",
+            total_projects=len(self.projects)
         )
 
     def add_memory(self, memory: MemoryItem) -> MemoryItem:

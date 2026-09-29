@@ -31,9 +31,23 @@ import { DashboardResponse, TaskStatus, TaskPriority, DecisionStatus } from "../
 
 export default function CommandCenterPage() {
   const router = useRouter();
-  const { workspace, currentUser, demoMode, isHindsightLive, activeProject, addNotification } = useWorkspace();
-  const [data, setData] = useState<DashboardResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    workspace,
+    currentUser,
+    demoMode,
+    isHindsightLive,
+    projects,
+    activeProject,
+    addNotification,
+    dashboardData,
+    isDashboardLoading,
+    refreshDashboard,
+    createTask,
+    completeTask
+  } = useWorkspace();
+
+  const data = dashboardData;
+  const loading = isDashboardLoading && !dashboardData;
   const [refreshing, setRefreshing] = useState(false);
   const [quickQuery, setQuickQuery] = useState("");
 
@@ -55,39 +69,43 @@ export default function CommandCenterPage() {
   const loadDashboard = async () => {
     try {
       setRefreshing(true);
-      const res = await api.getDashboard("ws-demo-hackathon-2026");
-      setData(res);
+      await refreshDashboard();
     } catch (err: any) {
       console.warn("Failed to load dashboard:", err);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    loadDashboard();
-  }, [activeProject]);
+    refreshDashboard();
+  }, [activeProject, refreshDashboard]);
 
   const handleCreateQuickTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!taskTitle.trim()) return;
     setIsSubmittingTask(true);
     try {
-      await api.createTask("ws-demo-hackathon-2026", {
+      await createTask({
         title: taskTitle.trim(),
         assignee: taskAssignee || undefined,
         priority: taskPriority,
         status: "todo"
       });
-      addNotification("success", "Task Created", `"${taskTitle.trim()}" added to board.`);
       setTaskTitle("");
       setShowTaskModal(false);
-      loadDashboard();
     } catch (err: any) {
       addNotification("error", "Failed to create task", err.message);
     } finally {
       setIsSubmittingTask(false);
+    }
+  };
+
+  const handleCompleteTask = async (taskId: string) => {
+    try {
+      await completeTask(taskId);
+    } catch (err: any) {
+      addNotification("error", "Failed to complete task", err.message);
     }
   };
 
@@ -105,7 +123,7 @@ export default function CommandCenterPage() {
       setDecTitle("");
       setDecRationale("");
       setShowDecisionModal(false);
-      loadDashboard();
+      await refreshDashboard();
     } catch (err: any) {
       addNotification("error", "Failed to record decision", err.message);
     } finally {
@@ -140,6 +158,9 @@ export default function CommandCenterPage() {
               </span>
               <span className="text-xs text-slate-500 font-medium">
                 • {currentUser.display_name} ({currentUser.role.toUpperCase()})
+              </span>
+              <span className="text-xs text-slate-500 font-medium">
+                • {projects.length} {projects.length === 1 ? "Project" : "Projects"}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -410,9 +431,14 @@ export default function CommandCenterPage() {
                         </div>
                       </div>
                     </div>
-                    <span className="text-[10px] px-2.5 py-0.5 rounded-full uppercase font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                      {task.status.replace("_", " ")}
-                    </span>
+                    <button
+                      onClick={() => handleCompleteTask(task.id)}
+                      title="Click to mark completed"
+                      className="text-[10px] px-2.5 py-0.5 rounded-full uppercase font-bold bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-slate-700 border border-slate-200 shrink-0 flex items-center gap-1 transition-all group cursor-pointer"
+                    >
+                      <Check className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                      <span>{task.status.replace("_", " ")}</span>
+                    </button>
                   </div>
                 ))
               )}

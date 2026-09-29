@@ -423,6 +423,7 @@ class DashboardStats(BaseModel):
     unresolved_blockers: int
     team_members_count: int
     retention_health: str  # "optimal", "degraded", "demo"
+    total_projects: int = 1
 
 class DashboardResponse(BaseModel):
     workspace: Workspace

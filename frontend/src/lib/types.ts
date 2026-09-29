@@ -127,6 +127,25 @@ export interface TaskItem {
   is_demo: boolean;
 }
 
+export interface TaskCreate {
+  title: string;
+  description?: string;
+  assignee?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  due_date?: string;
+  project_id?: string;
+}
+
+export interface TaskUpdate {
+  title?: string;
+  description?: string;
+  assignee?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  due_date?: string;
+}
+
 export interface ActionItemExtracted {
   title: string;
   assignee?: string;
@@ -315,6 +334,7 @@ export interface DashboardStats {
   unresolved_blockers: number;
   team_members_count: number;
   retention_health: "optimal" | "degraded" | "demo";
+  total_projects?: number;
 }
 
 export interface DashboardResponse {

@@ -33,7 +33,15 @@ const COLUMNS: { id: TaskStatus; label: string; dotColor: string; bgBadge: strin
 ];
 
 export default function TasksOwnershipPage() {
-  const { workspace, currentUser, addNotification } = useWorkspace();
+  const {
+    workspace,
+    currentUser,
+    addNotification,
+    refreshDashboard,
+    createTask: ctxCreateTask,
+    updateTask: ctxUpdateTask,
+    deleteTask: ctxDeleteTask
+  } = useWorkspace();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
@@ -86,7 +94,7 @@ export default function TasksOwnershipPage() {
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     try {
-      await api.updateTask("ws-demo-hackathon-2026", taskId, { status: newStatus });
+      await ctxUpdateTask(taskId, { status: newStatus });
       addNotification("info", "Task Updated", `Status changed to ${newStatus.replace("_", " ")}`);
       loadTasks();
     } catch (err: any) {
@@ -96,7 +104,7 @@ export default function TasksOwnershipPage() {
 
   const handleReassign = async (taskId: string, newAssignee: string) => {
     try {
-      await api.updateTask("ws-demo-hackathon-2026", taskId, { assignee: newAssignee });
+      await ctxUpdateTask(taskId, { assignee: newAssignee });
       addNotification("success", "Task Reassigned", `Reassigned to ${newAssignee}`);
       loadTasks();
     } catch (err: any) {
@@ -107,7 +115,7 @@ export default function TasksOwnershipPage() {
   const handleDeleteTask = async (taskId: string, title: string) => {
     if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
     try {
-      await api.deleteTask("ws-demo-hackathon-2026", taskId);
+      await ctxDeleteTask(taskId);
       addNotification("success", "Task Deleted", `"${title}" was removed.`);
       loadTasks();
     } catch (err: any) {
@@ -129,7 +137,7 @@ export default function TasksOwnershipPage() {
     if (!editingTask || !editTitle.trim()) return;
     setIsSubmittingEdit(true);
     try {
-      await api.updateTask("ws-demo-hackathon-2026", editingTask.id, {
+      await ctxUpdateTask(editingTask.id, {
         title: editTitle.trim(),
         description: editDesc.trim(),
         assignee: editAssignee.trim() || undefined,
@@ -168,7 +176,7 @@ export default function TasksOwnershipPage() {
 
     setIsSubmitting(true);
     try {
-      await api.createTask("ws-demo-hackathon-2026", {
+      await ctxCreateTask({
         title: modalTitle.trim(),
         description: modalDesc.trim() || undefined,
         assignee: modalAssignee.trim() || undefined,
@@ -176,7 +184,6 @@ export default function TasksOwnershipPage() {
         status: modalStatus
       });
 
-      addNotification("success", "Task Created", `"${modalTitle.trim()}" added to board.`);
       setShowAddModal(false);
       setModalTitle("");
       setModalDesc("");

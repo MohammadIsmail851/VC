@@ -1,6 +1,6 @@
 import {
   Workspace, WorkspaceMember, DashboardResponse, MemoryItem, DecisionItem,
-  TaskItem, TaskEvent, MeetingItem, MeetingSchedule, MeetingUpdate, DocumentItem,
+  TaskItem, TaskEvent, TaskCreate, TaskUpdate, MeetingItem, MeetingSchedule, MeetingUpdate, DocumentItem,
   ChatResponse, CatchUpResponse, InsightsResponse,
   ActivityEvent, IntegrationStatusItem, MemoryType, DecisionStatus,
   TaskStatus, TaskPriority, ActionItemExtracted, Project, ProjectCreate, ProjectUpdate,
@@ -213,7 +213,7 @@ class ApiClient {
 
   async createTask(
     workspaceId: string,
-    payload: { title: string; description?: string; assignee?: string; status?: TaskStatus; priority?: TaskPriority; due_date?: string }
+    payload: TaskCreate
   ): Promise<TaskItem> {
     return this.request<TaskItem>(`/api/workspaces/${workspaceId}/tasks`, {
       method: "POST",
@@ -224,7 +224,7 @@ class ApiClient {
   async updateTask(
     workspaceId: string,
     taskId: string,
-    payload: { title?: string; description?: string; assignee?: string; status?: TaskStatus; priority?: TaskPriority; due_date?: string }
+    payload: TaskUpdate
   ): Promise<TaskItem> {
     return this.request<TaskItem>(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
       method: "PATCH",

@@ -1,7 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
-import { UserProfile, Workspace, Project, ProjectCreate, ProjectUpdate, IntegrationStatusItem } from "../lib/types";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import {
+  UserProfile,
+  Workspace,
+  Project,
+  ProjectCreate,
+  ProjectUpdate,
+  IntegrationStatusItem,
+  DashboardResponse,
+  TaskItem,
+  TaskCreate,
+  TaskUpdate
+} from "../lib/types";
 import { api } from "../lib/api";
 
 export interface NotificationItem {
@@ -30,6 +41,13 @@ interface WorkspaceContextType {
   updateProject: (id: string, data: ProjectUpdate) => Promise<Project>;
   deleteProject: (id: string) => Promise<void>;
   refreshProjects: () => Promise<void>;
+  dashboardData: DashboardResponse | null;
+  isDashboardLoading: boolean;
+  refreshDashboard: () => Promise<void>;
+  createTask: (data: TaskCreate) => Promise<TaskItem>;
+  updateTask: (taskId: string, data: TaskUpdate) => Promise<TaskItem>;
+  completeTask: (taskId: string) => Promise<TaskItem>;
+  deleteTask: (taskId: string) => Promise<void>;
   switchPersona: (personaKey: "admin" | "student" | "judge" | "aisha" | "rahul" | "kiran") => void;
   loginAsStudent: () => void;
   loginAsAdmin: () => void;
@@ -124,6 +142,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isHindsightLive, setIsHindsightLive] = useState<boolean>(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState<boolean>(true);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
   // Computed Roles
@@ -243,6 +263,25 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     addNotification("warning", "Signed Out", "You have been logged out of VC (V Connect).");
   };
 
+  const refreshDashboard = useCallback(async () => {
+    try {
+      setIsDashboardLoading(true);
+      const [res, projs] = await Promise.all([
+        api.getDashboard("ws-demo-hackathon-2026"),
+        api.getProjects("ws-demo-hackathon-2026")
+      ]);
+      setDashboardData(res);
+      setProjects(projs);
+      if (projs.length > 0 && !activeProject) {
+        setActiveProject(projs[0]);
+      }
+    } catch (err: any) {
+      console.warn("Failed to refresh dashboard:", err);
+    } finally {
+      setIsDashboardLoading(false);
+    }
+  }, [activeProject]);
+
   const refreshProjects = async () => {
     try {
       const projs = await api.getProjects("ws-demo-hackathon-2026");
@@ -260,6 +299,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setProjects(prev => [newProj, ...prev]);
     setActiveProject(newProj);
     addNotification("success", "Project Created", `"${newProj.name}" is now active.`);
+    await refreshDashboard();
     return newProj;
   };
 
@@ -270,6 +310,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setActiveProject(updated);
     }
     addNotification("success", "Project Updated", `Changes saved for "${updated.name}".`);
+    await refreshDashboard();
     return updated;
   };
 
@@ -284,6 +325,33 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setActiveProject(projects.find(p => p.id !== id) || null);
     }
     addNotification("success", "Project Deleted", "Project removed from workspace.");
+    await refreshDashboard();
+  };
+
+  const createTask = async (data: TaskCreate): Promise<TaskItem> => {
+    const newTask = await api.createTask("ws-demo-hackathon-2026", data);
+    addNotification("success", "Task Created", `"${newTask.title}" added to board.`);
+    await refreshDashboard();
+    return newTask;
+  };
+
+  const updateTask = async (taskId: string, data: TaskUpdate): Promise<TaskItem> => {
+    const updated = await api.updateTask("ws-demo-hackathon-2026", taskId, data);
+    await refreshDashboard();
+    return updated;
+  };
+
+  const completeTask = async (taskId: string): Promise<TaskItem> => {
+    const updated = await api.updateTask("ws-demo-hackathon-2026", taskId, { status: "done" });
+    addNotification("success", "Task Completed", `"${updated.title}" marked as done.`);
+    await refreshDashboard();
+    return updated;
+  };
+
+  const deleteTask = async (taskId: string): Promise<void> => {
+    await api.deleteTask("ws-demo-hackathon-2026", taskId);
+    addNotification("success", "Task Deleted", "Task removed from workspace.");
+    await refreshDashboard();
   };
 
   const refreshWorkspaceData = async () => {
@@ -304,7 +372,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsHindsightLive(hs?.status === "connected");
       }
 
-      await refreshProjects();
+      await Promise.allSettled([refreshProjects(), refreshDashboard()]);
     } catch (e) {
       console.warn("Could not fetch workspace initial state:", e);
     }
@@ -333,6 +401,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateProject,
         deleteProject,
         refreshProjects,
+        dashboardData,
+        isDashboardLoading,
+        refreshDashboard,
+        createTask,
+        updateTask,
+        completeTask,
+        deleteTask,
         switchPersona,
         loginAsStudent,
         loginAsAdmin,
