@@ -18,13 +18,6 @@
                 "service": "backend",
                 "path": "/api/:path*"
             }
-        },
-        {
-            "source": "/:path*",
-            "destination": {
-                "service": "frontend",
-                "path": "/:path*"
-            }
         }
     ]
 }
