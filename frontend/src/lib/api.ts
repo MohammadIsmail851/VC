@@ -23,7 +23,7 @@ class ApiClient {
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
-      "Authorization": `Bearer ${this.token}`,
+      Authorization: `Bearer ${this.token}`,
       ...(options.headers as Record<string, string> || {})
     };
 
@@ -31,22 +31,33 @@ class ApiClient {
       headers["Content-Type"] = "application/json";
     }
 
-    const url = `${API_BASE}${path}`;
+    const cleanPath = path.startsWith("/api")
+      ? path.replace("/api", "")
+      : path;
+
+    const url = `${API_BASE}${cleanPath}`;
+
     try {
-      const resp = await fetch(url, { ...options, headers });
+      const resp = await fetch(url, {
+        ...options,
+        headers
+      });
+
       if (!resp.ok) {
         let errorMsg = `HTTP ${resp.status} ${resp.statusText}`;
+
         try {
           const errData = await resp.json();
           errorMsg = errData.detail || errData.message || errorMsg;
-        } catch {
-          // ignore
-        }
+        } catch { }
+
         throw new Error(errorMsg);
       }
+
       if (resp.status === 204) {
         return {} as T;
       }
+
       return await resp.json();
     } catch (err: any) {
       console.warn(`API call to ${path} failed:`, err.message);
