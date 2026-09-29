@@ -43,7 +43,8 @@ export default function CommandCenterPage() {
     isDashboardLoading,
     refreshDashboard,
     createTask,
-    completeTask
+    completeTask,
+    createDecision
   } = useWorkspace();
 
   const data = dashboardData;
@@ -114,16 +115,14 @@ export default function CommandCenterPage() {
     if (!decTitle.trim() || !decRationale.trim()) return;
     setIsSubmittingDec(true);
     try {
-      await api.createDecision("ws-demo-hackathon-2026", {
+      await createDecision({
         title: decTitle.trim(),
         rationale: decRationale.trim(),
         status: "accepted"
       });
-      addNotification("success", "Decision Recorded", `"${decTitle.trim()}" retained in memory.`);
       setDecTitle("");
       setDecRationale("");
       setShowDecisionModal(false);
-      await refreshDashboard();
     } catch (err: any) {
       addNotification("error", "Failed to record decision", err.message);
     } finally {
@@ -132,13 +131,14 @@ export default function CommandCenterPage() {
   };
 
   const stats = data?.stats || {
-    memories_retained: 4,
-    decisions_count: 3,
-    open_tasks_count: 3,
-    completed_tasks_count: 1,
-    unresolved_blockers: 1,
+    memories_retained: 0,
+    decisions_count: 0,
+    open_tasks_count: 0,
+    completed_tasks_count: 0,
+    unresolved_blockers: 0,
     team_members_count: 4,
-    retention_health: "optimal"
+    retention_health: "optimal",
+    total_projects: projects.length
   };
 
   const totalTasks = stats.open_tasks_count + stats.completed_tasks_count;
@@ -160,7 +160,7 @@ export default function CommandCenterPage() {
                 • {currentUser.display_name} ({currentUser.role.toUpperCase()})
               </span>
               <span className="text-xs text-slate-500 font-medium">
-                • {projects.length} {projects.length === 1 ? "Project" : "Projects"}
+                • {data?.stats?.total_projects ?? projects.length} {(data?.stats?.total_projects ?? projects.length) === 1 ? "Project" : "Projects"}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">

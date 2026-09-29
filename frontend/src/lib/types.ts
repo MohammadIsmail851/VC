@@ -99,6 +99,23 @@ export interface DecisionItem {
   is_demo: boolean;
 }
 
+export interface DecisionCreate {
+  title: string;
+  rationale: string;
+  alternatives?: string;
+  status?: DecisionStatus;
+  decision_date?: string;
+  project_id?: string;
+}
+
+export interface DecisionUpdate {
+  title?: string;
+  rationale?: string;
+  alternatives?: string;
+  status?: DecisionStatus;
+  decision_date?: string;
+}
+
 export interface TaskEvent {
   id: string;
   task_id: string;

@@ -390,11 +390,11 @@ class DemoStore:
 
     # --- CRUD operations for Demo Store ---
     def get_dashboard(self) -> DashboardStats:
-        open_tasks = len([t for t in self.tasks if t.status != TaskStatus.DONE])
-        done_tasks = len([t for t in self.tasks if t.status == TaskStatus.DONE])
-        unresolved_blockers = len([t for t in self.tasks if "blocker" in t.title.lower() or t.priority == TaskPriority.URGENT])
+        open_tasks = len([t for t in self.tasks if str(getattr(t.status, "value", t.status)).lower() != "done"])
+        done_tasks = len([t for t in self.tasks if str(getattr(t.status, "value", t.status)).lower() == "done"])
+        unresolved_blockers = len([t for t in self.tasks if "blocker" in t.title.lower() or str(getattr(t.priority, "value", t.priority)).lower() == "urgent"])
         return DashboardStats(
-            memories_retained=len([m for m in self.memories if m.ingestion_status == IngestionStatus.RETAINED]),
+            memories_retained=len([m for m in self.memories if str(getattr(m.ingestion_status, "value", m.ingestion_status)).lower() == "retained"]),
             decisions_count=len(self.decisions),
             open_tasks_count=open_tasks,
             completed_tasks_count=done_tasks,

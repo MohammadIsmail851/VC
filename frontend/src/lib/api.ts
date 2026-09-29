@@ -1,5 +1,6 @@
 import {
   Workspace, WorkspaceMember, DashboardResponse, MemoryItem, DecisionItem,
+  DecisionCreate, DecisionUpdate,
   TaskItem, TaskEvent, TaskCreate, TaskUpdate, MeetingItem, MeetingSchedule, MeetingUpdate, DocumentItem,
   ChatResponse, CatchUpResponse, InsightsResponse,
   ActivityEvent, IntegrationStatusItem, MemoryType, DecisionStatus,
@@ -179,7 +180,7 @@ class ApiClient {
 
   async createDecision(
     workspaceId: string,
-    payload: { title: string; rationale: string; alternatives?: string; status?: DecisionStatus; decision_date?: string }
+    payload: DecisionCreate
   ): Promise<DecisionItem> {
     return this.request<DecisionItem>(`/api/workspaces/${workspaceId}/decisions`, {
       method: "POST",
@@ -190,7 +191,7 @@ class ApiClient {
   async updateDecision(
     workspaceId: string,
     decisionId: string,
-    payload: { title?: string; rationale?: string; alternatives?: string; status?: DecisionStatus }
+    payload: DecisionUpdate
   ): Promise<DecisionItem> {
     return this.request<DecisionItem>(`/api/workspaces/${workspaceId}/decisions/${decisionId}`, {
       method: "PATCH",

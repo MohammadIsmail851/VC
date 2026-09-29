@@ -11,7 +11,10 @@ import {
   DashboardResponse,
   TaskItem,
   TaskCreate,
-  TaskUpdate
+  TaskUpdate,
+  DecisionItem,
+  DecisionCreate,
+  DecisionUpdate
 } from "../lib/types";
 import { api } from "../lib/api";
 
@@ -35,6 +38,8 @@ interface WorkspaceContextType {
   isHindsightLive: boolean;
   activePersona: string;
   projects: Project[];
+  tasks: TaskItem[];
+  decisions: DecisionItem[];
   activeProject: Project | null;
   setActiveProject: (project: Project) => void;
   createProject: (data: ProjectCreate) => Promise<Project>;
@@ -44,10 +49,14 @@ interface WorkspaceContextType {
   dashboardData: DashboardResponse | null;
   isDashboardLoading: boolean;
   refreshDashboard: () => Promise<void>;
+  loadDashboard: () => Promise<void>;
   createTask: (data: TaskCreate) => Promise<TaskItem>;
   updateTask: (taskId: string, data: TaskUpdate) => Promise<TaskItem>;
   completeTask: (taskId: string) => Promise<TaskItem>;
   deleteTask: (taskId: string) => Promise<void>;
+  createDecision: (data: DecisionCreate) => Promise<DecisionItem>;
+  updateDecision: (id: string, data: DecisionUpdate) => Promise<DecisionItem>;
+  deleteDecision: (id: string) => Promise<void>;
   switchPersona: (personaKey: "admin" | "student" | "judge" | "aisha" | "rahul" | "kiran") => void;
   loginAsStudent: () => void;
   loginAsAdmin: () => void;
@@ -141,6 +150,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [integrations, setIntegrations] = useState<IntegrationStatusItem[]>([]);
   const [isHindsightLive, setIsHindsightLive] = useState<boolean>(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState<boolean>(true);
@@ -266,11 +277,15 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshDashboard = useCallback(async () => {
     try {
       setIsDashboardLoading(true);
-      const [res, projs] = await Promise.all([
+      const [res, taskList, decList, projs] = await Promise.all([
         api.getDashboard("ws-demo-hackathon-2026"),
+        api.getTasks("ws-demo-hackathon-2026"),
+        api.getDecisions("ws-demo-hackathon-2026"),
         api.getProjects("ws-demo-hackathon-2026")
       ]);
       setDashboardData(res);
+      setTasks(taskList);
+      setDecisions(decList);
       setProjects(projs);
       if (projs.length > 0 && !activeProject) {
         setActiveProject(projs[0]);
@@ -281,6 +296,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setIsDashboardLoading(false);
     }
   }, [activeProject]);
+
+  const loadDashboard = refreshDashboard;
 
   const refreshProjects = async () => {
     try {
@@ -354,6 +371,25 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     await refreshDashboard();
   };
 
+  const createDecision = async (data: DecisionCreate): Promise<DecisionItem> => {
+    const newDec = await api.createDecision("ws-demo-hackathon-2026", data);
+    addNotification("success", "Decision Logged", `"${newDec.title}" retained in memory.`);
+    await refreshDashboard();
+    return newDec;
+  };
+
+  const updateDecision = async (id: string, data: DecisionUpdate): Promise<DecisionItem> => {
+    const updated = await api.updateDecision("ws-demo-hackathon-2026", id, data);
+    await refreshDashboard();
+    return updated;
+  };
+
+  const deleteDecision = async (id: string): Promise<void> => {
+    await api.deleteDecision("ws-demo-hackathon-2026", id);
+    addNotification("success", "Decision Deleted", "Decision removed from workspace.");
+    await refreshDashboard();
+  };
+
   const refreshWorkspaceData = async () => {
     try {
       const [wsList, intData] = await Promise.allSettled([
@@ -395,6 +431,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isHindsightLive,
         activePersona,
         projects,
+        tasks,
+        decisions,
         activeProject,
         setActiveProject,
         createProject,
@@ -404,10 +442,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dashboardData,
         isDashboardLoading,
         refreshDashboard,
+        loadDashboard,
         createTask,
         updateTask,
         completeTask,
         deleteTask,
+        createDecision,
+        updateDecision,
+        deleteDecision,
         switchPersona,
         loginAsStudent,
         loginAsAdmin,

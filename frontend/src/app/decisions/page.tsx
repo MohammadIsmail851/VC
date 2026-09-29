@@ -23,7 +23,15 @@ import { api } from "../../lib/api";
 import { DecisionItem, DecisionStatus } from "../../lib/types";
 
 export default function DecisionTimelinePage() {
-  const { workspace, currentUser, addNotification } = useWorkspace();
+  const {
+    workspace,
+    currentUser,
+    addNotification,
+    refreshDashboard,
+    createDecision,
+    updateDecision,
+    deleteDecision
+  } = useWorkspace();
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
@@ -72,14 +80,13 @@ export default function DecisionTimelinePage() {
 
     setIsSubmitting(true);
     try {
-      const created = await api.createDecision("ws-demo-hackathon-2026", {
+      await createDecision({
         title: modalTitle.trim(),
         rationale: modalRationale.trim(),
         alternatives: modalAlternatives.trim() || undefined,
         status: modalStatus
       });
 
-      addNotification("success", "Decision Logged", `Recorded decision: "${created.title}"`);
       setShowAddModal(false);
       setModalTitle("");
       setModalRationale("");
@@ -95,8 +102,7 @@ export default function DecisionTimelinePage() {
   const handleDeleteDecision = async (id: string, title: string) => {
     if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
     try {
-      await api.deleteDecision("ws-demo-hackathon-2026", id);
-      addNotification("success", "Decision Deleted", `"${title}" was removed.`);
+      await deleteDecision(id);
       loadDecisions();
     } catch (err: any) {
       addNotification("error", "Delete failed", err.message);
@@ -116,7 +122,7 @@ export default function DecisionTimelinePage() {
     if (!editingDecision || !editTitle.trim()) return;
     setIsSubmittingEdit(true);
     try {
-      await api.updateDecision("ws-demo-hackathon-2026", editingDecision.id, {
+      await updateDecision(editingDecision.id, {
         title: editTitle.trim(),
         rationale: editRationale.trim(),
         alternatives: editAlternatives.trim() || undefined,
@@ -134,7 +140,7 @@ export default function DecisionTimelinePage() {
 
   const handleStatusChange = async (decId: string, newStatus: DecisionStatus) => {
     try {
-      await api.updateDecision("ws-demo-hackathon-2026", decId, { status: newStatus });
+      await updateDecision(decId, { status: newStatus });
       addNotification("info", "Status Updated", `Decision status set to ${newStatus}`);
       loadDecisions();
     } catch (err: any) {
