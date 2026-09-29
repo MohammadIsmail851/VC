@@ -31,11 +31,16 @@ class ApiClient {
       headers["Content-Type"] = "application/json";
     }
 
-    const cleanPath = path.startsWith("/api")
-      ? path.replace("/api", "")
-      : path;
+    const base = API_BASE.replace(/\/+$/, "");
+    let normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
-    const url = `${API_BASE}${cleanPath}`;
+    // If base already ends with /api (e.g. "/api" or "http://localhost:8000/api")
+    // and path starts with /api (e.g. "/api/workspaces"), strip leading /api to avoid /api/api/...
+    if (base.endsWith("/api") && (normalizedPath === "/api" || normalizedPath.startsWith("/api/"))) {
+      normalizedPath = normalizedPath.slice(4) || "/";
+    }
+
+    const url = `${base}${normalizedPath}`;
 
     try {
       const resp = await fetch(url, {
@@ -67,7 +72,7 @@ class ApiClient {
 
   // Health & Integrations
   async getHealth() {
-    return this.request<{ status: string; app: string; demo_mode: boolean }>("/health");
+    return this.request<{ status: string; app: string; demo_mode: boolean }>("/api/health");
   }
 
   async getIntegrationsStatus() {

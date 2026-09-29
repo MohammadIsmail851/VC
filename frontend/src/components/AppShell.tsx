@@ -27,6 +27,7 @@ import {
   Menu,
   Activity,
   Layers,
+  Users,
   LogOut,
   UserCheck,
   GraduationCap,
@@ -48,11 +49,13 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Command Center", href: "/", icon: LayoutDashboard },
+  { label: "Projects", href: "/projects", icon: Layers },
+  { label: "Tasks & Ownership", href: "/tasks", icon: CheckSquare },
+  { label: "Team", href: "/team", icon: Users },
+  { label: "AI Meeting Notes", href: "/meetings", icon: FileText },
+  { label: "Decision Timeline", href: "/decisions", icon: GitCommit },
   { label: "Ask VC", href: "/ask-vc", icon: MessageSquareCode, badge: "AI" },
   { label: "Team Memory", href: "/memory", icon: BrainCircuit },
-  { label: "Decision Timeline", href: "/decisions", icon: GitCommit },
-  { label: "Tasks & Ownership", href: "/tasks", icon: CheckSquare },
-  { label: "AI Meeting Notes", href: "/meetings", icon: FileText },
   { label: "Instant Catch-up", href: "/catch-up", icon: Sparkles, badge: "30s" },
   { label: "Reflect & Insights", href: "/insights", icon: BarChart3 },
   { label: "Knowledge Hub", href: "/documents", icon: FolderLock },
@@ -347,7 +350,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
             {NAV_ITEMS.map(item => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || (item.href === "/" && pathname === "/dashboard");
               return (
                 <Link
                   key={item.href}
