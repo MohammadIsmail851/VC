@@ -55,7 +55,7 @@ async def get_workspace_dashboard(
     stats = demo_store.get_dashboard()
     recent_activity = demo_store.activity_events[:8]
     recent_decisions = demo_store.decisions[:4]
-    upcoming_tasks = [t for t in demo_store.tasks if str(getattr(t.status, "value", t.status)).lower() != "done"][:5]
+    upcoming_tasks = [t for t in demo_store.tasks if str(getattr(t.status, "value", t.status)).lower() not in ("done", "completed")][:5]
     
     int_overview = await get_integrations_status()
 

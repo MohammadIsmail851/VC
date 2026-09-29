@@ -14,7 +14,8 @@ import {
   TaskUpdate,
   DecisionItem,
   DecisionCreate,
-  DecisionUpdate
+  DecisionUpdate,
+  MemoryItem
 } from "../lib/types";
 import { api } from "../lib/api";
 
@@ -40,6 +41,7 @@ interface WorkspaceContextType {
   projects: Project[];
   tasks: TaskItem[];
   decisions: DecisionItem[];
+  memories: MemoryItem[];
   activeProject: Project | null;
   setActiveProject: (project: Project) => void;
   createProject: (data: ProjectCreate) => Promise<Project>;
@@ -152,6 +154,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState<boolean>(true);
@@ -277,17 +280,20 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshDashboard = useCallback(async () => {
     try {
       setIsDashboardLoading(true);
-      const [res, taskList, decList, projs] = await Promise.all([
-        api.getDashboard("ws-demo-hackathon-2026"),
-        api.getTasks("ws-demo-hackathon-2026"),
-        api.getDecisions("ws-demo-hackathon-2026"),
-        api.getProjects("ws-demo-hackathon-2026")
+      const wsId = workspace?.id || "ws-demo-hackathon-2026";
+      const [res, taskList, decList, memList, projs] = await Promise.all([
+        api.getDashboard(wsId).catch(() => null),
+        api.getTasks(wsId).catch(() => []),
+        api.getDecisions(wsId).catch(() => []),
+        api.getMemories(wsId).catch(() => []),
+        api.getProjects(wsId).catch(() => [])
       ]);
       setDashboardData(res);
-      setTasks(taskList);
-      setDecisions(decList);
-      setProjects(projs);
-      if (projs.length > 0 && !activeProject) {
+      setTasks(taskList || []);
+      setDecisions(decList || []);
+      setMemories(memList || []);
+      setProjects(projs || []);
+      if (projs && projs.length > 0 && !activeProject) {
         setActiveProject(projs[0]);
       }
     } catch (err: any) {
@@ -295,7 +301,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } finally {
       setIsDashboardLoading(false);
     }
-  }, [activeProject]);
+  }, [workspace?.id, activeProject]);
 
   const loadDashboard = refreshDashboard;
 
@@ -433,6 +439,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         projects,
         tasks,
         decisions,
+        memories,
         activeProject,
         setActiveProject,
         createProject,

@@ -1,7 +1,7 @@
 export type MemoryType = "Meeting" | "Decision" | "Task" | "Update" | "Document" | "General";
 export type IngestionStatus = "pending" | "retained" | "failed";
 export type DecisionStatus = "proposed" | "accepted" | "superseded" | "rejected";
-export type TaskStatus = "todo" | "in_progress" | "review" | "done";
+export type TaskStatus = "todo" | "in_progress" | "review" | "done" | "completed";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 export type DocumentUploadStatus = "uploaded" | "processing" | "extracted" | "failed";
 

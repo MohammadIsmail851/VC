@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -27,7 +27,17 @@ import {
 } from "lucide-react";
 import { useWorkspace } from "../components/WorkspaceContext";
 import { api } from "../lib/api";
-import { DashboardResponse, TaskStatus, TaskPriority, DecisionStatus } from "../lib/types";
+import {
+  DashboardResponse,
+  TaskStatus,
+  TaskPriority,
+  DecisionStatus,
+  MemoryItem,
+  TaskItem,
+  DecisionItem,
+  Project,
+  ActivityEvent
+} from "../lib/types";
 
 export default function CommandCenterPage() {
   const router = useRouter();
@@ -39,16 +49,21 @@ export default function CommandCenterPage() {
     projects,
     activeProject,
     addNotification,
-    dashboardData,
-    isDashboardLoading,
     refreshDashboard,
     createTask,
     completeTask,
     createDecision
   } = useWorkspace();
 
-  const data = dashboardData;
-  const loading = isDashboardLoading && !dashboardData;
+  const workspaceId = workspace?.id || "ws-demo-hackathon-2026";
+
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
+  const [liveProjects, setLiveProjects] = useState<Project[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState(false);
   const [quickQuery, setQuickQuery] = useState("");
 
@@ -67,20 +82,36 @@ export default function CommandCenterPage() {
   const [decRationale, setDecRationale] = useState("");
   const [isSubmittingDec, setIsSubmittingDec] = useState(false);
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       setRefreshing(true);
+      const [dash, taskList, decList, memList, projList, actList] = await Promise.all([
+        api.getDashboard(workspaceId).catch(() => null),
+        api.getTasks(workspaceId).catch(() => []),
+        api.getDecisions(workspaceId).catch(() => []),
+        api.getMemories(workspaceId).catch(() => []),
+        api.getProjects(workspaceId).catch(() => []),
+        api.getActivity(workspaceId).catch(() => [])
+      ]);
+
+      setDashboardData(dash);
+      setTasks(taskList || []);
+      setDecisions(decList || []);
+      setMemories(memList || []);
+      setLiveProjects(projList || []);
+      setActivity(actList && actList.length > 0 ? actList : (dash?.recent_activity || []));
       await refreshDashboard();
     } catch (err: any) {
       console.warn("Failed to load dashboard:", err);
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
-  };
+  }, [workspaceId, refreshDashboard]);
 
   useEffect(() => {
-    refreshDashboard();
-  }, [activeProject, refreshDashboard]);
+    loadDashboard();
+  }, [loadDashboard, activeProject]);
 
   const handleCreateQuickTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +126,7 @@ export default function CommandCenterPage() {
       });
       setTaskTitle("");
       setShowTaskModal(false);
+      await loadDashboard();
     } catch (err: any) {
       addNotification("error", "Failed to create task", err.message);
     } finally {
@@ -105,6 +137,7 @@ export default function CommandCenterPage() {
   const handleCompleteTask = async (taskId: string) => {
     try {
       await completeTask(taskId);
+      await loadDashboard();
     } catch (err: any) {
       addNotification("error", "Failed to complete task", err.message);
     }
@@ -123,6 +156,7 @@ export default function CommandCenterPage() {
       setDecTitle("");
       setDecRationale("");
       setShowDecisionModal(false);
+      await loadDashboard();
     } catch (err: any) {
       addNotification("error", "Failed to record decision", err.message);
     } finally {
@@ -130,19 +164,34 @@ export default function CommandCenterPage() {
     }
   };
 
-  const stats = data?.stats || {
-    memories_retained: 0,
-    decisions_count: 0,
-    open_tasks_count: 0,
-    completed_tasks_count: 0,
-    unresolved_blockers: 0,
-    team_members_count: 4,
-    retention_health: "optimal",
-    total_projects: projects.length
+  // Compute live statistics directly from real arrays (No hardcoded/demo values)
+  const isCompleted = (t: TaskItem) => {
+    const s = String(t.status || "").toLowerCase();
+    return s === "completed" || s === "done";
   };
+  const isOpen = (t: TaskItem) => !isCompleted(t);
 
-  const totalTasks = stats.open_tasks_count + stats.completed_tasks_count;
-  const taskProgressPct = totalTasks > 0 ? Math.round((stats.completed_tasks_count / totalTasks) * 100) : 0;
+  const activeTasksList = tasks.filter(isOpen);
+  const completedTasksList = tasks.filter(isCompleted);
+
+  const activeTasksCount = activeTasksList.length;
+  const completedTasksCount = completedTasksList.length;
+  const totalTasksCount = activeTasksCount + completedTasksCount;
+  const taskProgressPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+
+  const activeBlockersCount = tasks.filter(t => {
+    const p = String(t.priority || "").toLowerCase();
+    const title = String(t.title || "").toLowerCase();
+    return (p === "urgent" || p === "blocker" || title.includes("blocker")) && isOpen(t);
+  }).length;
+
+  const memoriesRetainedCount = memories.length;
+  const decisionsLoggedCount = decisions.length;
+  const totalProjectsCount = liveProjects.length > 0 ? liveProjects.length : projects.length;
+
+  const recentDecisionsList = decisions.slice(0, 3);
+  const recentActiveTasksList = activeTasksList.slice(0, 4);
+  const recentActivityList = activity.slice(0, 5);
 
   return (
     <div className="space-y-6 pb-12">
@@ -160,7 +209,7 @@ export default function CommandCenterPage() {
                 • {currentUser.display_name} ({currentUser.role.toUpperCase()})
               </span>
               <span className="text-xs text-slate-500 font-medium">
-                • {data?.stats?.total_projects ?? projects.length} {(data?.stats?.total_projects ?? projects.length) === 1 ? "Project" : "Projects"}
+                • {totalProjectsCount} {totalProjectsCount === 1 ? "Project" : "Projects"}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -230,7 +279,7 @@ export default function CommandCenterPage() {
             <BrainCircuit className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2 flex items-baseline gap-2">
-            <span>{stats.memories_retained}</span>
+            <span>{memoriesRetainedCount}</span>
             <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" /> 100% Synced
             </span>
@@ -247,7 +296,7 @@ export default function CommandCenterPage() {
             <GitCommit className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2 flex items-baseline gap-2">
-            <span>{stats.decisions_count}</span>
+            <span>{decisionsLoggedCount}</span>
             <span className="text-[11px] font-semibold text-indigo-600">Accepted</span>
           </div>
           <div className="text-[11px] text-slate-500 mt-1 truncate">
@@ -262,8 +311,8 @@ export default function CommandCenterPage() {
             <CheckSquare className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2 flex items-baseline gap-2">
-            <span>{stats.open_tasks_count}</span>
-            <span className="text-xs font-normal text-slate-500">/ {totalTasks} open</span>
+            <span>{activeTasksCount}</span>
+            <span className="text-xs font-normal text-slate-500">/ {totalTasksCount} open</span>
           </div>
           {/* Progress bar */}
           <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2.5 overflow-hidden">
@@ -281,7 +330,7 @@ export default function CommandCenterPage() {
             <AlertTriangle className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-2xl font-black text-amber-600 mt-2 flex items-baseline gap-2">
-            <span>{stats.unresolved_blockers}</span>
+            <span>{activeBlockersCount}</span>
             <span className="text-[11px] font-medium text-amber-600/90">Pending action</span>
           </div>
           <div className="text-[11px] text-slate-500 mt-1 truncate">
@@ -361,12 +410,12 @@ export default function CommandCenterPage() {
             </div>
 
             <div className="divide-y divide-slate-100 mt-1">
-              {(data?.recent_decisions || []).length === 0 ? (
+              {recentDecisionsList.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-400">
                   No decisions logged yet. Click "Log Decision" to add one.
                 </div>
               ) : (
-                (data?.recent_decisions || []).slice(0, 3).map((dec) => (
+                recentDecisionsList.map((dec) => (
                   <div key={dec.id} className="py-3.5 flex items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2">
@@ -406,12 +455,12 @@ export default function CommandCenterPage() {
             </div>
 
             <div className="divide-y divide-slate-100 mt-1">
-              {(data?.upcoming_tasks || []).length === 0 ? (
+              {recentActiveTasksList.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-400">
                   No active tasks. Click "New Task" to create one.
                 </div>
               ) : (
-                (data?.upcoming_tasks || []).slice(0, 4).map((task) => (
+                recentActiveTasksList.map((task) => (
                   <div key={task.id} className="py-3 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
                       <span
@@ -458,22 +507,28 @@ export default function CommandCenterPage() {
             </div>
 
             <div className="space-y-3 mt-3">
-              {(data?.recent_activity || []).slice(0, 5).map((act) => (
-                <div key={act.id} className="flex items-start gap-3 text-xs">
-                  <div className="w-6 h-6 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center font-bold text-[10px] text-indigo-700 shrink-0 mt-0.5">
-                    {act.actor.charAt(0)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-slate-900 font-semibold truncate">{act.title}</div>
-                    {act.description && (
-                      <div className="text-[11px] text-slate-500 truncate mt-0.5">{act.description}</div>
-                    )}
-                    <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 font-medium">
-                      <span>{act.actor}</span>
+              {recentActivityList.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">
+                  No activity recorded yet.
+                </div>
+              ) : (
+                recentActivityList.map((act) => (
+                  <div key={act.id} className="flex items-start gap-3 text-xs">
+                    <div className="w-6 h-6 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center font-bold text-[10px] text-indigo-700 shrink-0 mt-0.5">
+                      {act.actor.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-slate-900 font-semibold truncate">{act.title}</div>
+                      {act.description && (
+                        <div className="text-[11px] text-slate-500 truncate mt-0.5">{act.description}</div>
+                      )}
+                      <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 font-medium">
+                        <span>{act.actor}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

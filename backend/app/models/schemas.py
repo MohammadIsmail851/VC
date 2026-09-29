@@ -27,6 +27,7 @@ class TaskStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     REVIEW = "review"
     DONE = "done"
+    COMPLETED = "completed"
 
 class TaskPriority(str, Enum):
     LOW = "low"
