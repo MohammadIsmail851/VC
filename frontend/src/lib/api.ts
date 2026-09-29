@@ -7,7 +7,8 @@ import {
   MemberInvite
 } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "/api";
 
 class ApiClient {
   private token: string = "demo-token-judge";
@@ -30,7 +31,7 @@ class ApiClient {
       headers["Content-Type"] = "application/json";
     }
 
-    const url = `${API_BASE_URL}${path}`;
+    const url = `${API_BASE}${path}`;
     try {
       const resp = await fetch(url, { ...options, headers });
       if (!resp.ok) {
